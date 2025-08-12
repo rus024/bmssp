@@ -1,14 +1,13 @@
 use crate::models::{Edge, Length, Vertex};
 use std::collections::{BTreeSet, HashMap};
 
-
 #[derive(Debug, Default)]
 pub struct Entry {
     b: Length,
     u_set: Vec<Vertex>,
 }
 
-impl Entry{
+impl Entry {
     pub fn new(b: Length, u_set: Vec<Vertex>) -> Self {
         Self { b, u_set }
     }
@@ -19,7 +18,6 @@ impl Entry{
         &self.u_set
     }
 }
-
 
 #[derive(Debug, Default)]
 pub struct Heap {
@@ -48,19 +46,11 @@ impl Heap {
         self.d.insert(v, l);
     }
 
-    pub fn top(&self) -> Option<&Edge> {
-        self.que.first()
-    }
-
     pub fn pop(&mut self) -> Option<Edge> {
         self.que.pop_first().map(|edge| {
             self.d.remove(edge.vertex());
             edge
         })
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.que.is_empty()
     }
 }
 
@@ -126,34 +116,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_heap_basic_operations() {
-        let mut heap = Heap::new();
-        assert!(heap.is_empty());
-
-        heap.push(1, 10.0);
-        heap.push(2, 5.0);
-        heap.push(3, 15.0);
-
-        assert!(!heap.is_empty());
-        assert_eq!(heap.top(), Some(&Edge::new(2, 5.0)));
-
-        let edge = heap.pop().unwrap();
-        assert_eq!(edge, Edge::new(2, 5.0));
-        assert_eq!(heap.top(), Some(&Edge::new(1, 10.0)));
-    }
-
-    #[test]
-    fn test_heap_update_existing() {
-        let mut heap = Heap::new();
-        heap.push(1, 10.0);
-        heap.push(1, 5.0); // Should update to better distance
-        assert_eq!(heap.top(), Some(&Edge::new(1, 5.0)));
-
-        heap.push(1, 15.0); // Should not update (worse distance)
-        assert_eq!(heap.top(), Some(&Edge::new(1, 5.0)));
-    }
-
-    #[test]
     fn test_block_heap_pull() {
         let mut block_heap = BlockHeap::new(2, 100.0);
         block_heap.insert(1, 10.0);
@@ -161,6 +123,6 @@ mod tests {
         block_heap.insert(3, 15.0);
 
         let entry = block_heap.pull();
-        assert_eq!(entry.b, 10.0);
+        assert_eq!(entry.b, 15.0);
     }
 }

@@ -16,7 +16,7 @@ impl Pivots {
 }
 
 #[derive(Debug, Default)]
-struct ShortestPath {
+pub struct ShortestPath {
     //G_
     graph: Graph,
     t: usize,
@@ -30,20 +30,21 @@ struct ShortestPath {
 }
 
 impl ShortestPath {
-    pub fn new(graph: Graph) -> Self {
+    pub fn new(graph: impl Into<Graph>) -> Self {
         Self {
-            graph,
+            graph: graph.into(),
             ..Default::default()
         }
     }
     pub fn get(&mut self, s: Vertex) -> Vec<Length> {
         let n = self.graph.len();
 
-        self.dhat = Vec::with_capacity(n);
+        // NOTE: initialize to avoid error out of bounds
+        self.dhat = vec![Length::INFINITY; n];
         self.dhat[s] = 0.0;
-        self.prev = Vec::with_capacity(n);
-        self.tree_size = Vec::with_capacity(n);
-        self.f = Vec::with_capacity(n);
+        self.prev = vec![None; n];
+        self.tree_size = vec![None; n];
+        self.f = vec![Vec::new(); n];
 
         let n = n as f64;
         let t = (n.log2().powf(2.0 / 3.0)).floor();
@@ -79,9 +80,6 @@ impl ShortestPath {
         while u_set.len() < self.k * 2_usize.pow((l * self.t) as u32) && !d.is_empty() {
             let entry = d.pull();
             let b_entry = self.bmssp(l - 1, entry.b(), entry.u_set());
-
-            // let (bi, si) = d.pull();
-            // let (bid, ui) = self.bmssp(l - 1, bi, &si);
 
             for &u in b_entry.u_set() {
                 u_set.insert(u);
@@ -139,7 +137,7 @@ impl ShortestPath {
             && u0.len() < self.k + 1
         {
             let u = *edge.vertex();
-            let d = *edge.length();
+
             u0.insert(u);
 
             for graph_edge in &self.graph[u] {
@@ -190,10 +188,9 @@ impl ShortestPath {
                     let v = *graph_edge.vertex();
                     let w = *graph_edge.length();
 
-                    if self.dhat[v] >= self.dhat[u] + w {
+                    if self.dhat[v] >= self.dhat[u] + w && self.dhat[u] + w < b{
                         self.dhat[v] = self.dhat[u] + w;
                         self.prev[v] = Some(u);
-                        // Paper mentions dhat_[u] + w < B check here, but probably unnecessary
                         wi.insert(v);
                     }
                 }

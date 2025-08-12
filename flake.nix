@@ -30,6 +30,8 @@
             rust-bin-custom
           ];
         };
+
+        packages.default = pkgs.callPackage ./default.nix { };
       }
     );
 }

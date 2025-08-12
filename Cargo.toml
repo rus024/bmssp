@@ -1,8 +1,21 @@
 [package]
 name = "bmssp"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 description = "The BMSSP algorithm"
-license = "MIT OR Apache-2.0"
+license = "Apache-2.0"
+repository = "https://github.com/lucas-montes/bmssp"
+authors = ["Lucas Montes <lluc23@hotmail.com>"]
+categories = ["algorithms"]
+keywords = ["shortest-path", "search", "graph"]
 
 [dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports", "plotters"] }
+pprof = { version = "0.13.0", features = ["flamegraph", "criterion"] }
+rand = "0.9.2"
+
+[[bench]]
+name = "bench_bmssp"
+harness = false
