@@ -8,8 +8,8 @@ This library implements the first algorithm to achieve a sub-quadratic time comp
 
 ### Key Achievements
 
-- **Time Complexity**: O(m + n log² n / log log n) for graphs with non-negative edge weights
-- **Breaking the Sorting Barrier**: First algorithm to achieve better than O(m + n log n) complexity
+- **Time Complexity**: $O(m \log^{2/3} n)$
+- **Breaking the Sorting Barrier**: First algorithm to achieve better than $O(m + n \log n)$ complexity
 - **Theoretical Breakthrough**: Represents a major advancement in algorithmic graph theory after decades of research
 
 ## Algorithm Description
@@ -90,13 +90,6 @@ If you want to profile the functions you can use
 cargo bench --bench bench_bmssp -- --profile-time=30
 ```
 
-## Comparison with Classical Algorithms
-
-| Algorithm | Time Complexity | Space | Notes |
-|-----------|----------------|--------|-------|
-| Dijkstra | O(m + n log n) | O(n) | Classical approach |
-| BMSSP | O(m + n log² n / log log n) | O(n) | **This implementation** |
-
 ## Development
 
 ### Building from Source
@@ -146,7 +139,3 @@ The library is organized into several key modules:
 2. **Recursive Decomposition**: [`ShortestPath::bmssp`](src/shortest_path.rs) recursively breaks down the problem
 3. **Pivot Selection**: [`ShortestPath::find_pivots`](src/shortest_path.rs) identifies key vertices for partitioning
 4. **Base Case**: [`ShortestPath::base_case`](src/shortest_path.rs) handles small subproblems with a modified Dijkstra approach
-
-## License
-
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
