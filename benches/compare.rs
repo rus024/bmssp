@@ -5,33 +5,33 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-// ---------- graph generator ----------
-fn make_random_graph(n: usize, m: usize, seed: u64) -> Graph {
-    let mut bm: Graph = vec![Vec::new(); n].into();
+/// --- If your Edge uses different field names (e.g. `len`), change these two helpers only.
+#[inline]
+fn edge_to(e: &Edge) -> usize { e.to }
+#[inline]
+fn edge_weight(e: &Edge) -> f64 { e.weight }
+
+/// Random directed graph
+fn make_graph(n: usize, m: usize, seed: u64) -> Graph {
+    // Your Graph implements From<Vec<Vec<Edge>>>, so use .into()
+    let mut g: Graph = vec![Vec::new(); n].into();
     let mut rng = StdRng::seed_from_u64(seed);
     for _ in 0..m {
         let u = rng.gen_range(0..n);
         let v = rng.gen_range(0..n);
         if u == v { continue; }
-        let w: f64 = rng.gen_range(1.0f64..10.0f64);
+        let w: f64 = rng.gen_range(1.0f64..10.0f64); // <- f64, not f32
         g[u].push(Edge::new(v, w));
     }
     g
 }
 
-// ---------- Dijkstra over same Graph ----------
-#[inline]
-fn edge_to(e: &Edge) -> usize { e.to }
-// If this line doesn't compile, change `length` -> `weight` or `len`
-#[inline]
-fn edge_weight(e: &Edge) -> f64 { e.length }
-
+/// Plain Dijkstra over your Graph/Edge types
 #[derive(Copy, Clone, PartialEq)]
 struct State { cost: f64, node: usize }
 impl Eq for State {}
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // reverse so smallest cost pops first
         other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
     }
 }
@@ -58,7 +58,7 @@ fn dijkstra(g: &Graph, s: usize) -> Vec<f64> {
     dist
 }
 
-// ---------- Bench both on same graphs ----------
+/// Benchmark both on the same graphs
 pub fn compare(c: &mut Criterion) {
     let sizes = [
         (100, 400),
@@ -70,13 +70,12 @@ pub fn compare(c: &mut Criterion) {
     ];
 
     let mut group = c.benchmark_group("Compare_BMSSP_vs_Dijkstra");
-    group.sample_size(60); // tune if it runs long
+    group.sample_size(40); // tune as needed
 
     for (n, m) in sizes {
         let label = format!("{}v_{}e", n, m);
-        let g = make_random_graph(n, m, 42);
+        let g = make_graph(n, m, 42);
 
-        // BMSSP (needs ownership; we clone per-iter)
         group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
             let g_ref = &g;
             b.iter(|| {
@@ -85,7 +84,6 @@ pub fn compare(c: &mut Criterion) {
             });
         });
 
-        // Dijkstra (borrows; pure read)
         group.bench_function(BenchmarkId::new("Dijkstra", &label), |b| {
             let g_ref = &g;
             b.iter(|| {
