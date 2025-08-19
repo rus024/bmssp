@@ -1,3 +1,7 @@
+cd ~/bmssp
+
+# 1) Overwrite benches/compare.rs with a known-good version
+cat > benches/compare.rs <<'RS'
 // benches/compare.rs
 use bmssp::{ShortestPath, Graph, Edge};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
@@ -6,10 +10,10 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 /// Build the same random graph in two shapes:
-/// - BMSSP: Graph (your struct)
+/// - BMSSP: Graph (your crate's Graph)
 /// - Dijkstra: Vec<Vec<(to, weight)>> with f64 weights
 fn make_graph_pair(n: usize, m: usize, seed: u64) -> (Graph, Vec<Vec<(usize, f64)>>) {
-    // NOTE: Graph is a struct; convert Vec<Vec<Edge>> -> Graph via .into()
+    // Graph is a struct; convert Vec<Vec<Edge>> -> Graph via .into()
     let mut bm: Graph = vec![Vec::<Edge>::new(); n].into();
     let mut dj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
 
@@ -18,24 +22,19 @@ fn make_graph_pair(n: usize, m: usize, seed: u64) -> (Graph, Vec<Vec<(usize, f64
         let u = rng.gen_range(0..n);
         let v = rng.gen_range(0..n);
         if u == v { continue; }
-        let w: f64 = rng.gen_range(1.0..10.0); // f64 on purpose
+        let w: f64 = rng.gen_range(1.0f64..10.0f64); // force f64
 
-        // BMSSP graph
         bm[u].push(Edge::new(v, w));
-
-        // Dijkstra adjacency uses (to, weight) with f64
-        dj[u].push((v, w));
+        dj[u].push((v, w)); // expects f64
     }
     (bm, dj)
 }
 
-/// Minimal Dijkstra for the (to, weight) adjacency
 #[derive(Copy, Clone, PartialEq)]
 struct State { cost: f64, node: usize }
 impl Eq for State {}
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // reverse so smallest cost pops first
         other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
     }
 }
@@ -61,7 +60,6 @@ fn dijkstra(adj: &Vec<Vec<(usize, f64)>>, s: usize) -> Vec<f64> {
     dist
 }
 
-/// Bench both on identical graphs
 pub fn compare(c: &mut Criterion) {
     let sizes = [
         (100, 400),
@@ -79,7 +77,6 @@ pub fn compare(c: &mut Criterion) {
         let label = format!("{}v_{}e", n, m);
         let (bm_graph, dj_graph) = make_graph_pair(n, m, 42);
 
-        // BMSSP
         group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
             b.iter(|| {
                 let mut sp = ShortestPath::new(bm_graph.clone());
@@ -87,7 +84,6 @@ pub fn compare(c: &mut Criterion) {
             });
         });
 
-        // Dijkstra
         group.bench_function(BenchmarkId::new("Dijkstra", &label), |b| {
             b.iter(|| {
                 black_box(dijkstra(&dj_graph, 0usize))
@@ -100,3 +96,13 @@ pub fn compare(c: &mut Criterion) {
 
 criterion_group!(benches, compare);
 criterion_main!(benches);
+RS
+
+# 2) Sanity-check that the file really has the two fixes
+rg -n "\.into\(\)|rng\.gen_range\(1\.0f64\.\.10\.0f64\)" benches/compare.rs
+
+# 3) Clean build cache so Cargo can't reuse the old compiled bench
+cargo clean
+
+# 4) Run the bench
+cargo bench --bench compare -- --sample-size 40
