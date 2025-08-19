@@ -1,48 +1,30 @@
-cd ~/bmssp
-
-# 1) Overwrite benches/compare.rs with a known-good file
-cat > benches/compare.rs <<'RS'
 // benches/compare.rs
-use bmssp::{ShortestPath, Graph, Edge};
+use bmssp::{ShortestPath, Graph, Edge, Length};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, SeedableRng, Rng};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
+use std::time::Duration;
 
-/// Build the same random graph in two shapes:
-/// - BMSSP: Graph (your crate's Graph)
-/// - Dijkstra: Vec<Vec<(to, weight)>> with f64 weights
-fn make_graph_pair(n: usize, m: usize, seed: u64) -> (Graph, Vec<Vec<(usize, f64)>>) {
-    // Graph is a wrapper; convert Vec<Vec<Edge>> -> Graph via .into()
-    let mut bm: Graph = vec![Vec::<Edge>::new(); n].into();
-    let mut dj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
+// adjacency for Dijkstra: (to, weight) with the SAME Length type as the crate (f32)
+type DjGraph = Vec<Vec<(usize, Length)>>;
 
-    let mut rng = StdRng::seed_from_u64(seed);
-    for _ in 0..m {
-        let u = rng.gen_range(0..n);
-        let v = rng.gen_range(0..n);
-        if u == v { continue; }
-        let w64: f64 = rng.gen_range(1.0f64..10.0f64); // force f64
-
-        bm[u].push(Edge::new(v, w64)); // BMSSP
-        dj[u].push((v, w64));          // Dijkstra
-    }
-    (bm, dj)
-}
-
+// ----- Dijkstra using Length (f32) -----
 #[derive(Copy, Clone, PartialEq)]
-struct State { cost: f64, node: usize }
+struct State { cost: Length, node: usize }
 impl Eq for State {}
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
         other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
     }
 }
-impl PartialOrd for State { fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) } }
+impl PartialOrd for State {
+    fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) }
+}
 
-fn dijkstra(adj: &Vec<Vec<(usize, f64)>>, s: usize) -> Vec<f64> {
+fn dijkstra(adj: &DjGraph, s: usize) -> Vec<Length> {
     let n = adj.len();
-    let mut dist = vec![f64::INFINITY; n];
+    let mut dist = vec![Length::INFINITY; n];
     dist[s] = 0.0;
     let mut pq = BinaryHeap::new();
     pq.push(State { cost: 0.0, node: s });
@@ -60,33 +42,58 @@ fn dijkstra(adj: &Vec<Vec<(usize, f64)>>, s: usize) -> Vec<f64> {
     dist
 }
 
+// ----- graph generator used by both algos -----
+fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
+    let mut rng = StdRng::seed_from_u64(seed);
+    // Graph is a wrapper around Vec<Vec<Edge>> -> convert with .into()
+    let mut bm: Graph = vec![Vec::<Edge>::new(); n].into();
+    let mut dj: DjGraph = vec![Vec::new(); n];
+
+    for _ in 0..m {
+        let u = rng.random_range(0..n);
+        let mut v = rng.random_range(0..n);
+        if v == u { v = (v + 1) % n; }
+        let w: Length = rng.random_range(1.0..10.0); // Length == f32
+
+        bm[u].push(Edge::new(v, w));
+        dj[u].push((v, w));
+    }
+    (bm, dj)
+}
+
 pub fn compare(c: &mut Criterion) {
-    let sizes = [
+    // keep this name stable; your speedup script looks for these labels
+    let mut group = c.benchmark_group("BMSSP_vs_Dijkstra");
+    group.sample_size(40);
+    group.measurement_time(Duration::from_secs(8));
+
+    // (vertices, edges) — add larger cases as you like
+    let inputs = [
+        (50, 200),
         (100, 400),
         (200, 800),
-        (400, 1600),
+        (400, 1_600),
         (1_000, 5_000),
         (5_000, 20_000),
         (10_000, 50_000),
     ];
 
-    let mut group = c.benchmark_group("Compare_BMSSP_vs_Dijkstra");
-    group.sample_size(40);
-
-    for (n, m) in sizes {
+    for (n, m) in inputs {
+        let (bm_graph, dj_graph) = gen_graph(n, m, 42);
         let label = format!("{}v_{}e", n, m);
-        let (bm_graph, dj_graph) = make_graph_pair(n, m, 42);
 
         group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
+            let g = bm_graph.clone();
             b.iter(|| {
-                let mut sp = ShortestPath::new(bm_graph.clone());
+                let mut sp = ShortestPath::new(g.clone());
                 black_box(sp.get(0usize))
             });
         });
 
         group.bench_function(BenchmarkId::new("Dijkstra", &label), |b| {
+            let g = dj_graph.clone();
             b.iter(|| {
-                black_box(dijkstra(&dj_graph, 0usize))
+                black_box(dijkstra(&g, 0usize))
             });
         });
     }
@@ -96,13 +103,3 @@ pub fn compare(c: &mut Criterion) {
 
 criterion_group!(benches, compare);
 criterion_main!(benches);
-RS
-
-# 2) Confirm those two critical fixes are present
-rg -n 'Vec::<Edge>|w64|1\.0f64\.\.10\.0f64' benches/compare.rs
-
-# 3) Clean cache so Cargo can’t reuse stale bench code
-cargo clean
-
-# 4) Build & run the bench
-cargo bench --bench compare -- --sample-size 40
