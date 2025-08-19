@@ -1,6 +1,6 @@
 cd ~/bmssp
 
-# 1) Overwrite benches/compare.rs with a known-good version
+# 1) Overwrite benches/compare.rs with a known-good file
 cat > benches/compare.rs <<'RS'
 // benches/compare.rs
 use bmssp::{ShortestPath, Graph, Edge};
@@ -13,7 +13,7 @@ use std::collections::BinaryHeap;
 /// - BMSSP: Graph (your crate's Graph)
 /// - Dijkstra: Vec<Vec<(to, weight)>> with f64 weights
 fn make_graph_pair(n: usize, m: usize, seed: u64) -> (Graph, Vec<Vec<(usize, f64)>>) {
-    // Graph is a struct; convert Vec<Vec<Edge>> -> Graph via .into()
+    // Graph is a wrapper; convert Vec<Vec<Edge>> -> Graph via .into()
     let mut bm: Graph = vec![Vec::<Edge>::new(); n].into();
     let mut dj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
 
@@ -22,10 +22,10 @@ fn make_graph_pair(n: usize, m: usize, seed: u64) -> (Graph, Vec<Vec<(usize, f64
         let u = rng.gen_range(0..n);
         let v = rng.gen_range(0..n);
         if u == v { continue; }
-        let w: f64 = rng.gen_range(1.0f64..10.0f64); // force f64
+        let w64: f64 = rng.gen_range(1.0f64..10.0f64); // force f64
 
-        bm[u].push(Edge::new(v, w));
-        dj[u].push((v, w)); // expects f64
+        bm[u].push(Edge::new(v, w64)); // BMSSP
+        dj[u].push((v, w64));          // Dijkstra
     }
     (bm, dj)
 }
@@ -98,11 +98,11 @@ criterion_group!(benches, compare);
 criterion_main!(benches);
 RS
 
-# 2) Sanity-check that the file really has the two fixes
-rg -n "\.into\(\)|rng\.gen_range\(1\.0f64\.\.10\.0f64\)" benches/compare.rs
+# 2) Confirm those two critical fixes are present
+rg -n 'Vec::<Edge>|w64|1\.0f64\.\.10\.0f64' benches/compare.rs
 
-# 3) Clean build cache so Cargo can't reuse the old compiled bench
+# 3) Clean cache so Cargo can’t reuse stale bench code
 cargo clean
 
-# 4) Run the bench
+# 4) Build & run the bench
 cargo bench --bench compare -- --sample-size 40
