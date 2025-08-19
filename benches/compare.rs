@@ -45,7 +45,7 @@ fn dijkstra(adj: &DjGraph, s: usize) -> Vec<f64> {
 fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
     let mut rng = StdRng::seed_from_u64(seed);
 
-    // Build edges in a plain Vec<Vec<Edge>> first…
+    // Build edges in plain Vec<Vec<Edge>> first
     let mut adj_edges: Vec<Vec<Edge>> = vec![Vec::new(); n];
     let mut dj: DjGraph = vec![Vec::new(); n];
 
@@ -54,16 +54,13 @@ fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
         let mut v = rng.random_range(0..n);
         if v == u { v = (v + 1) % n; }
 
-        // Your Edge::new expects Length = f32
         let w: f32 = rng.random_range(1.0f32..10.0f32);
 
-        // for your crate
-        adj_edges[u].push(Edge::new(v, w));
-        // for Dijkstra
+        adj_edges[u].push(Edge::new(v, w));  // only mutate Vec<Vec<Edge>>
         dj[u].push((v, w as f64));
     }
 
-    // …then convert once into Graph
+    // Convert once into Graph at the end
     let bm: Graph = adj_edges.into();
     (bm, dj)
 }
