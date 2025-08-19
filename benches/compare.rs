@@ -6,46 +6,47 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::time::Duration;
 
-// Dijkstra adjacency type (weights as f64 so it’s numerically stable)
+// Dijkstra adjacency uses f64 weights
 type DjGraph = Vec<Vec<(usize, f64)>>;
 
-// ---------- Dijkstra (binary heap) ----------
+// ---------- Plain Dijkstra ----------
 #[derive(Copy, Clone, PartialEq)]
 struct State { cost: f64, node: usize }
 impl Eq for State {}
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // reverse so the smallest cost pops first
         other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
     }
 }
-impl PartialOrd for State { fn partial_cmp(&self, o:&Self)->Option<Ordering>{ Some(self.cmp(o)) } }
+impl PartialOrd for State {
+    fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) }
+}
 
 fn dijkstra(adj: &DjGraph, s: usize) -> Vec<f64> {
     let n = adj.len();
     let mut dist = vec![f64::INFINITY; n];
     dist[s] = 0.0;
     let mut pq = BinaryHeap::new();
-    pq.push(State{ cost: 0.0, node: s });
+    pq.push(State { cost: 0.0, node: s });
 
-    while let Some(State{ cost, node }) = pq.pop() {
+    while let Some(State { cost, node }) = pq.pop() {
         if cost > dist[node] { continue; }
         for &(v, w) in &adj[node] {
             let nd = cost + w;
             if nd < dist[v] {
                 dist[v] = nd;
-                pq.push(State{ cost: nd, node: v });
+                pq.push(State { cost: nd, node: v });
             }
         }
     }
     dist
 }
 
-// ---------- Build identical random graphs for both algorithms ----------
+// ---------- Build graphs once (no mut on Graph) ----------
 fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
     let mut rng = StdRng::seed_from_u64(seed);
 
-    // Build edges in plain Vec<Vec<Edge>> first
+    // Build in raw vectors first
     let mut adj_edges: Vec<Vec<Edge>> = vec![Vec::new(); n];
     let mut dj: DjGraph = vec![Vec::new(); n];
 
@@ -54,13 +55,17 @@ fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
         let mut v = rng.random_range(0..n);
         if v == u { v = (v + 1) % n; }
 
-        let w: f32 = rng.random_range(1.0f32..10.0f32);
+        // Your Edge::new expects f32
+        let w_f32: f32 = rng.random_range(1.0f32..10.0f32);
 
-        adj_edges[u].push(Edge::new(v, w));  // only mutate Vec<Vec<Edge>>
-        dj[u].push((v, w as f64));
+        // Fill raw adjacency
+        adj_edges[u].push(Edge::new(v, w_f32));
+
+        // Dijkstra uses f64
+        dj[u].push((v, w_f32 as f64));
     }
 
-    // Convert once into Graph at the end
+    // Convert once into your Graph wrapper
     let bm: Graph = adj_edges.into();
     (bm, dj)
 }
@@ -71,24 +76,22 @@ pub fn compare(c: &mut Criterion) {
     group.sample_size(40);
     group.measurement_time(Duration::from_secs(8));
 
-    // (vertices, edges)
     let inputs = [
         (50, 200),
         (100, 400),
         (200, 800),
         (400, 1_600),
         (1_000, 5_000),
-        (5_000, 20_000),
-        (10_000, 50_000),
     ];
 
     for (n, m) in inputs {
         let label = format!("{}v_{}e", n, m);
         let (bm_graph, dj_graph) = gen_graph(n, m, 42);
 
-        // BMSSP (clone each iter if ShortestPath::new takes ownership)
+        // BMSSP
         group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
             b.iter(|| {
+                // ShortestPath::new takes Graph; clone to reuse input
                 let mut sp = ShortestPath::new(bm_graph.clone());
                 black_box(sp.get(0usize))
             });
