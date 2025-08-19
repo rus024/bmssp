@@ -16,6 +16,10 @@ criterion = { version = "0.5.1", features = ["html_reports", "plotters"] }
 pprof = { version = "0.13.0", features = ["flamegraph", "criterion"] }
 rand = "0.9.2"
 
+grep -q 'name = "compare"' Cargo.toml || cat >> Cargo.toml <<'TOML'
+
 [[bench]]
 name = "compare"
 harness = false
+TOML
+
