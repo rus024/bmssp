@@ -100,5 +100,5 @@ pub fn compare(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, compare);
+criterion_group!(benches, compare_dijkstra_vs_new);
 criterion_main!(benches);
