@@ -7,13 +7,13 @@ use std::collections::BinaryHeap;
 
 // ---------- graph generator ----------
 fn make_random_graph(n: usize, m: usize, seed: u64) -> Graph {
-    let mut g: Graph = vec![Vec::new(); n];
+    let mut bm: Graph = vec![Vec::new(); n].into();
     let mut rng = StdRng::seed_from_u64(seed);
     for _ in 0..m {
         let u = rng.gen_range(0..n);
         let v = rng.gen_range(0..n);
         if u == v { continue; }
-        let w: f64 = rng.gen_range(1.0..10.0);
+        let w: f64 = rng.gen_range(1.0f64..10.0f64);
         g[u].push(Edge::new(v, w));
     }
     g
