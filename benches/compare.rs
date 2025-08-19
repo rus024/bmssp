@@ -1,30 +1,28 @@
 // benches/compare.rs
-use bmssp::{ShortestPath, Graph, Edge, Length};
+use bmssp::{ShortestPath, Graph, Edge};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
 use rand::{rngs::StdRng, SeedableRng, Rng};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::time::Duration;
 
-// adjacency for Dijkstra: (to, weight) with the SAME Length type as the crate (f32)
-type DjGraph = Vec<Vec<(usize, Length)>>;
+// Dijkstra adjacency: use f32 so it matches Edge::new(..., weight: f32)
+type DjGraph = Vec<Vec<(usize, f32)>>;
 
-// ----- Dijkstra using Length (f32) -----
+// ----- Minimal Dijkstra (f32) -----
 #[derive(Copy, Clone, PartialEq)]
-struct State { cost: Length, node: usize }
+struct State { cost: f32, node: usize }
 impl Eq for State {}
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
         other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
     }
 }
-impl PartialOrd for State {
-    fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) }
-}
+impl PartialOrd for State { fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) } }
 
-fn dijkstra(adj: &DjGraph, s: usize) -> Vec<Length> {
+fn dijkstra(adj: &DjGraph, s: usize) -> Vec<f32> {
     let n = adj.len();
-    let mut dist = vec![Length::INFINITY; n];
+    let mut dist = vec![f32::INFINITY; n];
     dist[s] = 0.0;
     let mut pq = BinaryHeap::new();
     pq.push(State { cost: 0.0, node: s });
@@ -42,7 +40,7 @@ fn dijkstra(adj: &DjGraph, s: usize) -> Vec<Length> {
     dist
 }
 
-// ----- graph generator used by both algos -----
+// ----- Make the SAME random graph in both shapes -----
 fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
     let mut rng = StdRng::seed_from_u64(seed);
     // Graph is a wrapper around Vec<Vec<Edge>> -> convert with .into()
@@ -53,7 +51,7 @@ fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
         let u = rng.random_range(0..n);
         let mut v = rng.random_range(0..n);
         if v == u { v = (v + 1) % n; }
-        let w: Length = rng.random_range(1.0..10.0); // Length == f32
+        let w: f32 = rng.random_range(1.0..10.0);
 
         bm[u].push(Edge::new(v, w));
         dj[u].push((v, w));
@@ -61,13 +59,13 @@ fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
     (bm, dj)
 }
 
+// ----- Bench both -----
 pub fn compare(c: &mut Criterion) {
-    // keep this name stable; your speedup script looks for these labels
+    // keep this name stable for your speedup parser
     let mut group = c.benchmark_group("BMSSP_vs_Dijkstra");
     group.sample_size(40);
     group.measurement_time(Duration::from_secs(8));
 
-    // (vertices, edges) — add larger cases as you like
     let inputs = [
         (50, 200),
         (100, 400),
