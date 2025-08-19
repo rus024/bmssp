@@ -1,11 +1,11 @@
 // benches/compare.rs
-use bmssp::{ShortestPath, Graph, Edge}; // from your crate
+use bmssp::{ShortestPath, Graph, Edge};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-/// ---- Graph generator (same type as your library) ----
+// ---------- graph generator ----------
 fn make_random_graph(n: usize, m: usize, seed: u64) -> Graph {
     let mut g: Graph = vec![Vec::new(); n];
     let mut rng = StdRng::seed_from_u64(seed);
@@ -19,13 +19,12 @@ fn make_random_graph(n: usize, m: usize, seed: u64) -> Graph {
     g
 }
 
-/// ---- Plain Dijkstra (binary heap) using the same Graph ----
-/// NOTE: If your Edge struct uses `len` or `length` instead of `weight`,
-///       change `edge_weight(e)` to read the correct field.
+// ---------- Dijkstra over same Graph ----------
 #[inline]
-fn edge_to(e: &Edge) -> usize { e.to }             // <--- change if your field name differs
+fn edge_to(e: &Edge) -> usize { e.to }
+// If this line doesn't compile, change `length` -> `weight` or `len`
 #[inline]
-fn edge_weight(e: &Edge) -> f64 { e.weight }       // <--- change if your field name differs
+fn edge_weight(e: &Edge) -> f64 { e.length }
 
 #[derive(Copy, Clone, PartialEq)]
 struct State { cost: f64, node: usize }
@@ -59,9 +58,8 @@ fn dijkstra(g: &Graph, s: usize) -> Vec<f64> {
     dist
 }
 
-/// ---- Benchmark both algorithms on the same graphs ----
+// ---------- Bench both on same graphs ----------
 pub fn compare(c: &mut Criterion) {
-    // (nodes, edges) — feel free to add larger sizes
     let sizes = [
         (100, 400),
         (200, 800),
@@ -72,15 +70,14 @@ pub fn compare(c: &mut Criterion) {
     ];
 
     let mut group = c.benchmark_group("Compare_BMSSP_vs_Dijkstra");
-    group.sample_size(100); // reduce/increase as needed
+    group.sample_size(60); // tune if it runs long
 
     for (n, m) in sizes {
         let label = format!("{}v_{}e", n, m);
         let g = make_random_graph(n, m, 42);
 
-        // BMSSP
+        // BMSSP (needs ownership; we clone per-iter)
         group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
-            // reuse same graph input each iter
             let g_ref = &g;
             b.iter(|| {
                 let mut sp = ShortestPath::new(g_ref.clone());
@@ -88,7 +85,7 @@ pub fn compare(c: &mut Criterion) {
             });
         });
 
-        // Dijkstra
+        // Dijkstra (borrows; pure read)
         group.bench_function(BenchmarkId::new("Dijkstra", &label), |b| {
             let g_ref = &g;
             b.iter(|| {
@@ -100,5 +97,5 @@ pub fn compare(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, compare_dijkstra_vs_new);
+criterion_group!(benches, compare);
 criterion_main!(benches);
