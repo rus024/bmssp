@@ -109,13 +109,21 @@ fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
 }
 
 // ---------- ✅ YOUR MAIN FUNCTION ----------
+use criterion::Criterion;
+
 pub fn compare_internet(c: &mut Criterion) {
     let mut group = c.benchmark_group("InternetTopologies");
     group.sample_size(10);
-    group.measurement_time(Duration::from_secs(10));
+    group.measurement_time(std::time::Duration::from_secs(10));
 
-    // full body of benchmark here...
+    // ... your synthetic and real-data tests here ...
+
+    group.finish();
 }
+
+criterion_group!(benches, compare_internet);
+criterion_main!(benches);
+
 
 
     // ---------- (A) Synthetic ----------
