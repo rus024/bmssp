@@ -1,13 +1,13 @@
 use bmssp::{ShortestPath, Graph, Edge};
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box, BatchSize};
-use rand::{rngs::StdRng, Rng, SeedableRng}; // (not used here; kept if you add synthetic later)
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
 use std::time::Duration;
 
+// ---------- simple reference Dijkstra ----------
 type DjGraph = Vec<Vec<(usize, f64)>>;
 
 #[derive(Copy, Clone, PartialEq)]
@@ -15,11 +15,12 @@ struct State { cost: f64, node: usize }
 impl Eq for State {}
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // reverse (min-heap behavior)
         other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
     }
 }
-impl PartialOrd for State { fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) } }
+impl PartialOrd for State {
+    fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) }
+}
 
 fn dijkstra(adj: &DjGraph, s: usize) -> Vec<f64> {
     let n = adj.len();
@@ -27,7 +28,6 @@ fn dijkstra(adj: &DjGraph, s: usize) -> Vec<f64> {
     dist[s] = 0.0;
     let mut pq = BinaryHeap::new();
     pq.push(State { cost: 0.0, node: s });
-
     while let Some(State { cost, node }) = pq.pop() {
         if cost > dist[node] { continue; }
         for &(v, w) in &adj[node] {
@@ -41,24 +41,21 @@ fn dijkstra(adj: &DjGraph, s: usize) -> Vec<f64> {
     dist
 }
 
-/// Load a two-column edgelist (u v per line), ignoring comments/headers.
-/// Weights are set to 1.0. Works for SNAP as-733 / as-skitter.
-fn load_edgelist_unweighted<P: AsRef<Path>>(path: P) -> (Graph, DjGraph) {
-    let f = File::open(&path).expect("cannot open edgelist");
-    let r = BufReader::new(f);
+// ---------- helpers: parse edge lists (two ints per line) ----------
+fn load_as_edgelist(path: &str, undirected: bool) -> (Graph, DjGraph) {
+    // First pass: collect edges, figure out max node id
+    let f = File::open(path).expect("open dataset");
+    let rdr = BufReader::new(f);
 
-    // First pass: find max node id
-    let mut max_id: usize = 0;
     let mut edges: Vec<(usize, usize)> = Vec::new();
+    let mut max_id = 0usize;
 
-    for line in r.lines() {
-        let line = match line { Ok(s) => s, Err(_) => continue };
-        let s = line.trim();
-        if s.is_empty() || s.starts_with('#') { continue; }
-        // common SNAP headers like "FromNodeId\tToNodeId"
-        if s.chars().next().map(|c| !c.is_ascii_digit()).unwrap_or(true) { continue; }
-
-        let mut it = s.split_whitespace();
+    for line in rdr.lines() {
+        let line = line.expect("read line");
+        let t = line.trim();
+        if t.is_empty() || t.starts_with('#') { continue; }
+        // allow any whitespace separator (tabs or spaces)
+        let mut it = t.split_whitespace();
         let u: usize = match it.next().and_then(|x| x.parse().ok()) { Some(v) => v, None => continue };
         let v: usize = match it.next().and_then(|x| x.parse().ok()) { Some(v) => v, None => continue };
         edges.push((u, v));
@@ -69,49 +66,76 @@ fn load_edgelist_unweighted<P: AsRef<Path>>(path: P) -> (Graph, DjGraph) {
     let mut bm_adj: Vec<Vec<Edge>> = vec![Vec::new(); n];
     let mut dj_adj: DjGraph = vec![Vec::new(); n];
 
-    // directed edges (SNAP AS graphs are directed)
     for (u, v) in edges {
+        // weight 1.0 for all Internet topology edges
         bm_adj[u].push(Edge::new(v, 1.0));
         dj_adj[u].push((v, 1.0));
+        if undirected {
+            bm_adj[v].push(Edge::new(u, 1.0));
+            dj_adj[v].push((u, 1.0));
+        }
     }
 
-    let bm: Graph = bm_adj.into();
-    (bm, dj_adj)
+    (bm_adj.into(), dj_adj)
 }
 
-pub fn compare_internet(c: &mut Criterion) {
-    let mut group = c.benchmark_group("BMSSP_vs_Dijkstra_Internet");
-    // Keep runs short on huge graphs:
-    group.sample_size(10);
-    group.measurement_time(Duration::from_secs(5));
+// ---------- optional synthetic generator (kept small) ----------
+fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut bm: Vec<Vec<Edge>> = vec![Vec::new(); n];
+    let mut dj: DjGraph = vec![Vec::new(); n];
 
+    for _ in 0..m {
+        let u = rng.random_range(0..n);
+        let mut v = rng.random_range(0..n);
+        if v == u { v = (v + 1) % n; }
+        let w: f32 = 1.0; // keep unit weights
+        bm[u].push(Edge::new(v, w));
+        dj[u].push((v, w as f64));
+    }
+    (bm.into(), dj)
+}
+
+// ---------- the bench ----------
+pub fn compare_internet(c: &mut Criterion) {
+    let mut group = c.benchmark_group("InternetTopologies");
+    // Heavy graphs: keep sample size modest
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(10));
+
+    // (A) A tiny sanity check on synthetic
+    for (n, m) in [(5_000, 20_000)] {
+        let label = format!("synthetic_{}v_{}e", n, m);
+        let (bm_graph, dj_graph) = gen_graph(n, m, 42);
+        group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
+            b.iter(|| {
+                let mut sp = ShortestPath::new(bm_graph.clone());
+                black_box(sp.get(0usize))
+            });
+        });
+        group.bench_function(BenchmarkId::new("Dijkstra", &label), |b| {
+            b.iter(|| black_box(dijkstra(&dj_graph, 0usize)));
+        });
+    }
+
+    // (B) Real Internet topologies (undirected logical edges, unit weights)
     let datasets = [
-        ("as-733", "data/as-733.txt"),
-        ("as-skitter", "data/as-skitter.txt"),
-        // If you add a Rocketfuel edge list later, put it here:
-        // ("rocketfuel-3257", "data/rocketfuel-3257.edgelist"),
+        ("AS-733 (20000102)", "data/as-733-20000102.txt"),
+        ("AS-skitter",        "data/as-skitter.txt"),
     ];
 
     for (name, path) in datasets {
-        if !Path::new(path).exists() {
-            eprintln!("[skip] {} not found at {}", name, path);
-            continue;
-        }
-        eprintln!("[load] {} from {}", name, path);
-        let (bm_graph, dj_graph) = load_edgelist_unweighted(path);
+        let (bm_graph, dj_graph) = load_as_edgelist(path, /*undirected=*/ true);
 
-        // BMSSP: build ShortestPath each iter (it takes ownership of the graph)
         group.bench_function(BenchmarkId::new("BMSSP", name), |b| {
-            b.iter_batched(
-                || ShortestPath::new(bm_graph.clone()),
-                |mut sp| { black_box(sp.get(0usize)); },
-                BatchSize::SmallInput
-            );
+            b.iter(|| {
+                let mut sp = ShortestPath::new(bm_graph.clone());
+                black_box(sp.get(0usize))
+            });
         });
 
-        // Dijkstra: borrow the graph (no clone needed per-iter)
         group.bench_function(BenchmarkId::new("Dijkstra", name), |b| {
-            b.iter(|| { black_box(dijkstra(&dj_graph, 0usize)); });
+            b.iter(|| black_box(dijkstra(&dj_graph, 0usize)));
         });
     }
 
