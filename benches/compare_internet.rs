@@ -114,6 +114,10 @@ pub fn compare_internet(c: &mut Criterion) {
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(10));
 
+    // full body of benchmark here...
+}
+
+
     // ---------- (A) Synthetic ----------
     for (n, m) in [(5_000, 20_000)] {
         let label = format!("synthetic_{}v_{}e", n, m);
