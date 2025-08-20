@@ -18,7 +18,12 @@ rand = "0.9.2"
 
 [[bench]]
 name = "compare"
+path = "benches/compare.rs"
 harness = false
 
+[[bench]]
+name = "compare_internet"
+path = "benches/compare_internet.rs"
+harness = false
 
 
