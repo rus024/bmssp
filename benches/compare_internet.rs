@@ -97,7 +97,7 @@ fn gen_graph(n: usize, m: usize, seed: u64) -> (Graph, DjGraph) {
 }
 
 // ---------- the bench ----------
-pub fn compare_internet(c: &mut Criterion) {
+pub fn compare_internet(c: &mut criterion::Criterion) { /* ... */ }
     let mut group = c.benchmark_group("InternetTopologies");
     // Heavy graphs: keep sample size modest
     group.sample_size(10);
