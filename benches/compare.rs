@@ -7,6 +7,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
+mod datasets;
+use datasets::ensure_snap_txt;
+
 type DjGraph = Vec<Vec<(usize, f64)>>;
 
 #[derive(Copy, Clone, PartialEq)]
@@ -128,7 +131,11 @@ pub fn compare(c: &mut Criterion) {
     }
 
     // ---- real dataset ----
-    let (bm_graph, dj_graph) = load_roadnet("data/roadNet-PA.txt");
+    let path = ensure_snap_txt(
+        "roadNet-PA",
+        "https://snap.stanford.edu/data/roadNet-PA.txt.gz",
+    );
+    let (bm_graph, dj_graph) = load_roadnet(&path.to_string_lossy());
     let label = "roadNet-PA";
     group.bench_function(BenchmarkId::new("BMSSP", &label), |b| {
         b.iter(|| {
