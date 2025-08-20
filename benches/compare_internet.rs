@@ -120,12 +120,12 @@ pub fn compare_internet(c: &mut Criterion) {
 
     // (B) Real Internet topologies (undirected logical edges, unit weights)
     let datasets = [
-        ("AS-733 (20000102)", "data/as-733-20000102.txt"),
-        ("AS-skitter",        "data/as-skitter.txt"),
-    ];
+    ("AS-733 (20000102)", "data/as-733.txt", true),  // undirected
+    ("AS-skitter",        "data/as-skitter.txt", false), // directed
+];
 
-    for (name, path) in datasets {
-        let (bm_graph, dj_graph) = load_as_edgelist(path, /*undirected=*/ true);
+   for (name, path, undirected) in datasets {
+    let (bm_graph, dj_graph) = load_as_edgelist(path, undirected);
 
         group.bench_function(BenchmarkId::new("BMSSP", name), |b| {
             b.iter(|| {
