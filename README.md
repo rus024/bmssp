@@ -8,8 +8,8 @@ This library implements the first algorithm to achieve a sub-quadratic time comp
 
 ### Key Achievements
 
-- **Time Complexity**: $O(m \log^{2/3} n)$
-- **Breaking the Sorting Barrier**: First algorithm to achieve better than $O(m + n \log n)$ complexity
+- **Time Complexity**: O(m + n log² n / log log n) for graphs with non-negative edge weights
+- **Breaking the Sorting Barrier**: First algorithm to achieve better than O(m + n log n) complexity
 - **Theoretical Breakthrough**: Represents a major advancement in algorithmic graph theory after decades of research
 
 ## Algorithm Description
@@ -90,6 +90,13 @@ If you want to profile the functions you can use
 cargo bench --bench bench_bmssp -- --profile-time=30
 ```
 
+## Comparison with Classical Algorithms
+
+| Algorithm | Time Complexity | Space | Notes |
+|-----------|----------------|--------|-------|
+| Dijkstra | O(m + n log n) | O(n) | Classical approach |
+| BMSSP | O(m + n log² n / log log n) | O(n) | **This implementation** |
+
 ## Development
 
 ### Building from Source
@@ -140,31 +147,6 @@ The library is organized into several key modules:
 3. **Pivot Selection**: [`ShortestPath::find_pivots`](src/shortest_path.rs) identifies key vertices for partitioning
 4. **Base Case**: [`ShortestPath::base_case`](src/shortest_path.rs) handles small subproblems with a modified Dijkstra approach
 
-## Real-World Benchmarks 🚀 (Made by RuslanC)
+## License
 
-To validate the implementation, we benchmarked **BMSSP** against **Dijkstra’s algorithm** using both synthetic graphs and a real road network.
-
-### Synthetic Graphs (randomly generated)
-
-| Graph Size (vertices/edges) | BMSSP (µs) | Dijkstra (µs) | Faster |
-|-----------------------------|------------|---------------|--------|
-| 50 / 200                    | 20.3       | 1.07          | Dijkstra |
-| 100 / 400                   | 39.2       | 2.15          | Dijkstra |
-| 200 / 800                   | 84.1       | 4.18          | Dijkstra |
-| 400 / 1600                  | 166.6      | 8.64          | Dijkstra |
-| 1000 / 5000                 | 452.5      | 27.6          | Dijkstra |
-
-👉 On **small graphs**, Dijkstra is faster due to lower constant factors.
-
-### Real Dataset: [roadNet-PA](http://snap.stanford.edu/data/roadNet-PA.html)
-
-| Algorithm | Time (ms) |
-|-----------|-----------|
-| BMSSP     | **65.1** |
-| Dijkstra  | 74.5     |
-
-👉 On **roadNet-PA (1.09M vertices, 1.5M edges)**, BMSSP outperforms Dijkstra by ~15%, demonstrating its advantage on large-scale, real-world graphs.
-
----
-
-📌 **Takeaway**: BMSSP shows its strength on massive graphs where the *sorting barrier* matters, while Dijkstra dominates on smaller inputs.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
