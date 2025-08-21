@@ -1,24 +1,3 @@
-# 🚀 BMSSP: Breaking the Sorting Barrier for Shortest Paths
-
-⚡ **A fast Rust implementation of BMSSP** — the first algorithm to outperform Dijkstra's $O(m + n \log n)$ on large-scale graphs.  
-📜 Based on the 2024 breakthrough paper: [_"Breaking the Sorting Barrier for Directed Single-Source Shortest Paths"_](https://arxiv.org/pdf/2504.17033)  
-🛠️ Author: [RuslanC](https://github.com/rus024)
-
----
-
-## 📊 Benchmark Results (Real + Synthetic)
-
-| Dataset                 | 🔵 BMSSP Time | 🟢 Dijkstra Time | 🏆 Winner    |
-|--------------------------|---------------|------------------|--------------|
-| `roadNet-PA`            | 72.9 ms       | 80.9 ms          | ✅ **BMSSP** |
-| `roadNet-CA`            | 134.9 ms      | 162.7 ms         | ✅ **BMSSP** |
-| `roadNet-TX`            | 83.8 ms       | 98.9 ms          | ✅ **BMSSP** |
-| `as-caida20071105`      | 1.50 ms       | 15.8 µs          | 🟢 Dijkstra  |
-| `USA-road-d.NY`         | 124.5 ms      | 20.1 ms          | 🟢 Dijkstra  |
-| `USA-road-d.BAY`        | 145.8 ms      | 24.9 ms          | 🟢 Dijkstra  |
-
-> 🧠 **Takeaway:** BMSSP wins on real-world **large-scale** graphs. Dijkstra still rules on **small-to-medium** graphs.
-
 BMSSP - Breaking the Sorting Barrier for Single-Source Shortest Paths
 A Rust implementation of the groundbreaking BMSSP (Bounded Multi-Source Shortest Path) algorithm from the paper "Breaking the Sorting Barrier for Directed Single-Source Shortest Paths" by R. Duan, J. Mao, X. Mao, X. Shu, and L. Yin.
 
@@ -135,7 +114,16 @@ Initialization: The ShortestPath::get method sets up parameters and calls the ma
 Recursive Decomposition: ShortestPath::bmssp recursively breaks down the problem
 Pivot Selection: ShortestPath::find_pivots identifies key vertices for partitioning
 Base Case: ShortestPath::base_case handles small subproblems with a modified Dijkstra approach
-Initialization: The ShortestPath::get method sets up parameters and calls the main algorithm
-Recursive Decomposition: ShortestPath::bmssp recursively breaks down the problem
-Pivot Selection: ShortestPath::find_pivots identifies key vertices for partitioning
-Base Case: ShortestPath::base_case handles small subproblems with a modified Dijkstra approach
+
+## 📊 Benchmark Results (Real + Synthetic)
+
+| Dataset                 | 🔵 BMSSP Time | 🟢 Dijkstra Time | 🏆 Winner    |
+|--------------------------|---------------|------------------|--------------|
+| `roadNet-PA`            | 72.9 ms       | 80.9 ms          | ✅ **BMSSP** |
+| `roadNet-CA`            | 134.9 ms      | 162.7 ms         | ✅ **BMSSP** |
+| `roadNet-TX`            | 83.8 ms       | 98.9 ms          | ✅ **BMSSP** |
+| `as-caida20071105`      | 1.50 ms       | 15.8 µs          | 🟢 Dijkstra  |
+| `USA-road-d.NY`         | 124.5 ms      | 20.1 ms          | 🟢 Dijkstra  |
+| `USA-road-d.BAY`        | 145.8 ms      | 24.9 ms          | 🟢 Dijkstra  |
+
+> 🧠 **Takeaway:** BMSSP wins on real-world **large-scale** graphs. Dijkstra still rules on **small-to-medium** graphs.
